@@ -35,7 +35,6 @@ USER root
 
 COPY package.json .
 COPY package-lock.json .
-COPY crawler-* .
 
 RUN npm install
 
