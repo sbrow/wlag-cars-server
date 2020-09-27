@@ -1,8 +1,7 @@
-require("dotenv").config();
-
+// @ts-ignore
+import { main, sites } from "crawler";
+import { CronJob } from "cron";
 import * as mongodb from "mongodb";
-import { CronJob } from 'cron';
-import { main } from "crawler";
 
 async function initDB(db: mongodb.Db): Promise<void> {
     try {
@@ -13,53 +12,54 @@ async function initDB(db: mongodb.Db): Promise<void> {
 }
 
 async function crawl(db: mongodb.Db) {
-    const cars = await main()
-    if (!(cars instanceof Error)) {
-        for (const car of cars) {
-            try {
-                db.collection("cars").updateOne(car, { $set: { ...car } }, { upsert: true });
-            } catch (e) {
-                console.error(e);
-            } finally {
+    try {
+        // @ts-ignore
+        for (const site in sites) {
+            if (site === "cars") {
+                await main(db, "cars", sites[site]);
             }
         }
+    } catch (e) {
+        console.error(e);
     }
 }
 
 (async () => {
     try {
         const express = require("express");
-        let cors = require("cors");
+        const cors = require("cors");
         const bodyParser = require("body-parser");
         const logger = require("morgan");
 
-        const API_PORT = process.env.SERVER_PORT;
+        const API_PORT = process.env.SERVER_PORT || process.env.npm_config_server_port || "3001";
         const app = express();
         app.use(cors());
         const router = express.Router();
 
-        const dbName = "wlagcars"
+        // const dbName = "wlagcars";
         // this is our MongoDB database
 
         let dbRoute = `mongodb://${process.env.MONGO_USER}:${process.env.MONGO_PASS}@${process.env.DB_HOST}:27017`;
         if (process.env.MONGO_CONN !== undefined) {
-            dbRoute = process.env.MONGO_CONN
+            dbRoute = process.env.MONGO_CONN;
+        } else if (process.env.npm_package_config_db !== undefined) {
+            dbRoute = process.env.npm_package_config_db;
         }
 
-        console.log(dbRoute)
+        console.log(dbRoute);
 
         // connects our back end code with the database
         const client = await mongodb.connect(dbRoute, { useNewUrlParser: true });
+        const dbName = dbRoute.match(/(\/)(.[^\/]*$)/)[2];
         const db = await client.db(dbName);
         await initDB(db);
 
-        console.debug("Registering cronjob...")
-        new CronJob('0 * * * *', function () {
+        console.debug("Registering cronjob...");
+        new CronJob("0 * * * *", function () {
             console.log("Triggering crawler");
             crawl(db);
         }, null, true, undefined, undefined, true);
-        console.debug("Job registered.")
-
+        console.debug("Job registered.");
 
         const cars = await db.collection("cars");
 
@@ -73,10 +73,9 @@ async function crawl(db: mongodb.Db) {
         // this method adds new data in our database
         router.post("/putData", async (req, res) => {
             try {
-                cars.insertOne(req.body)
+                cars.insertOne(req.body);
                 return res.json({ success: true });
-            }
-            catch (err) {
+            } catch (err) {
                 return res.json({ success: false, error: err });
             }
         });
@@ -85,7 +84,7 @@ async function crawl(db: mongodb.Db) {
         // this method fetches all available data in our database
         router.get("/getData", async (req, res) => {
             try {
-                const data = await cars.aggregate([{ $project: { _id: 0 } }]).toArray()
+                const data = await cars.aggregate([{ $project: { _id: 0 } }]).toArray();
                 // return res.json({ success: true, data: { aaData: data } });
                 return res.json({ success: true, data });
             } catch (err) {
@@ -95,8 +94,8 @@ async function crawl(db: mongodb.Db) {
 
         router.get("/crawl", async (req, res) => {
             crawl(db);
-            return res.json({ success: true, message: "Crawler started." })
-        })
+            return res.json({ success: true, message: "Crawler started." });
+        });
 
         // append /api for our http requests
         app.use("/api", router);
@@ -104,6 +103,6 @@ async function crawl(db: mongodb.Db) {
         // launch our backend into a port
         app.listen(API_PORT, () => console.log(`LISTENING ON PORT ${API_PORT}`));
     } catch (e) {
-        console.error(e)
+        console.error(e);
     }
-})()
+})();

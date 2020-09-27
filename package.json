@@ -2,30 +2,51 @@
   "name": "server",
   "version": "1.0.0",
   "description": "",
-  "main": "srv.ts",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "ts-node srv.ts"
-  },
   "author": "Spencer Brower",
-  "license": "ISC",
+  "license": "GPL-3.0+",
+  "bin": "dist/server.js",
+  "config": {
+    "db": "mongodb://localhost:27017",
+    "server_port": "3001",
+    "chrome_path": "/usr/bin/google-chrome"
+  },
+  "scripts": {
+    "env": "env",
+    "check": "npm-check",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "clean": "rm -rf ./node_modules/ && rm -rf ./package-lock.json",
+    "clean-install": "npm run clean && npm install",
+    "build": "tsc",
+    "build:docker": "docker build --rm -t $npm_package_name .",
+    "start:dev": "ts-node $(echo $npm_package_bin_server | sed 's/.js/.ts/; s/dist\\//.\\//')",
+    "start": "node $npm_package_bin_server",
+    "start:docker": "docker run -it --name $npm_package_name $npm_package_name",
+    "prepare": "npm run build",
+    "prestart": "npm run build",
+    "push": "git push --follow-tags",
+    "push:heroku": "git push heroku master",
+    "preversion": "npm run prepare && npm run check",
+    "postversion": "git push --follow-tags"
+  },
   "dependencies": {
     "body-parser": "^1.18.3",
     "cors": "^2.8.5",
-    "crawler": "git+https://github.com/sbrow/car-crawler.git",
+    "crawler": "github:sbrow/car-crawler",
     "cron": "^1.7.0",
     "dotenv": "^7.0.0",
     "express": "^4.16.4",
     "mongodb": "^3.2.2",
-    "mongoose": "^5.4.20",
-    "morgan": "^1.9.1",
-    "ts-node": "^8.0.3",
-    "typescript": "^3.3.4000"
+    "mongoose": "^5.5.0",
+    "morgan": "^1.9.1"
   },
   "devDependencies": {
     "@types/cron": "^1.7.0",
-    "@types/node": "^11.12.0",
+    "@types/jquery": "^3.3.29",
     "@types/mongodb": "^3.1.22",
-    "jquery": "^3.3.1"
+    "@types/node": "^11.12.0",
+    "jquery": "^3.3.1",
+    "npm-check": "^5.9.0",
+    "ts-node": "^8.0.3",
+    "typescript": "^3.3.4000"
   }
 }
